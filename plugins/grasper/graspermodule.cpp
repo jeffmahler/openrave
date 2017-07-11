@@ -15,10 +15,8 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "plugindefs.h"
 
-#include <algorithm>
 #include <boost/thread/condition.hpp>
 #include <boost/thread/mutex.hpp>
-#include <cmath>
 
 #ifdef QHULL_FOUND
 
@@ -65,7 +63,7 @@ class GrasperModule : public ModuleBase
     };
 
 public:
-    GrasperModule(EnvironmentBasePtr penv, std::istream& sinput)  : ModuleBase(penv), outfile(NULL), errfile(NULL) {
+    GrasperModule(EnvironmentBasePtr penv, std::istream& sinput)  : ModuleBase(penv), errfile(NULL) {
         __description = ":Interface Author: Rosen Diankov\n\nUsed to simulate a hand grasping an object by closing its fingers until collision with all links. ";
         RegisterCommand("Grasp",boost::bind(&GrasperModule::_GraspCommand,this,_1,_2),
                         "Performs a grasp and returns contact points");
@@ -79,8 +77,6 @@ public:
                         "Given a point cloud, returns information about its convex hull like normal planes, vertex indices, and triangle indices. Computed planes point outside the mesh, face indices are not ordered, triangles point outside the mesh (counter-clockwise)");
     }
     virtual ~GrasperModule() {
-        if( !!outfile )
-            fclose(outfile);
         if( !!errfile )
             fclose(errfile);
     }
@@ -498,7 +494,7 @@ public:
     virtual bool _ConvexHullCommand(std::ostream& sout, std::istream& sinput)
     {
         string cmd;
-        bool bReturnFaces = true, bReturnPlanes = true, bReturnTriangles = true, bReturnVolume = false;
+        bool bReturnFaces = true, bReturnPlanes = true, bReturnTriangles = true;
         int dim=0;
         vector<double> vpoints;
         while(!sinput.eof()) {
@@ -525,9 +521,6 @@ public:
             else if( cmd == "returntriangles" ) {
                 sinput >> bReturnTriangles;
             }
-            else if( cmd == "returnvolume" ) {
-                sinput >> bReturnVolume;
-            }
             else {
                 RAVELOG_WARN(str(boost::format("unrecognized command: %s\n")%cmd));
                 break;
@@ -544,8 +537,7 @@ public:
         if( bReturnFaces || bReturnTriangles ) {
             vconvexfaces.reset(new vector<int>);
         }
-        dReal volume = _ComputeConvexHull(vpoints,vconvexplanes, vconvexfaces, dim);
-        if( volume == 0 ) {
+        if( _ComputeConvexHull(vpoints,vconvexplanes, vconvexfaces, dim) == 0 ) {
             return false;
         }
         if( bReturnPlanes ) {
@@ -617,9 +609,6 @@ public:
                 faceindex += numpoints+1;
                 planeindex += dim+1;
             }
-        }
-        if( bReturnVolume ) {
-            sout << volume << " ";
         }
         return true;
     }
@@ -1616,30 +1605,16 @@ protected:
         boost::mutex::scoped_lock lock(s_QhullMutex);
         vconvexplanes.resize(0);
 #ifdef QHULL_FOUND
-        if ( vpoints.empty() ) {
-            RAVELOG_ERROR("points cannot be empty\n");
-            return 0;
-        }
-
-        if ( dim < 2 ) {
-            RAVELOG_ERROR("dim must be greater than or equal to 2\n");
-            return 0;
-        }
-
         vector<coordT> qpoints(vpoints.size());
         std::copy(vpoints.begin(),vpoints.end(),qpoints.begin());
 
         boolT ismalloc = 0;               // True if qhull should free points in qh_freeqhull() or reallocation
         char flags[]= "qhull Tv FA";     // option flags for qhull, see qh_opt.htm, output volume (FA)
 
-        if( !outfile ) {
-            outfile = tmpfile();        // stdout from qhull code
-        }
         if( !errfile ) {
             errfile = tmpfile();        // stderr, error messages from qhull code
         }
-
-        int exitcode= qh_new_qhull (dim, qpoints.size()/dim, &qpoints[0], ismalloc, flags, outfile, errfile);
+        int exitcode= qh_new_qhull (dim, qpoints.size()/dim, &qpoints[0], ismalloc, flags, errfile, errfile);
         if (!exitcode) {
             vconvexplanes.reserve(1000);
             if( !!vconvexfaces ) {
@@ -1681,21 +1656,8 @@ protected:
         if (curlong || totlong) {
             RAVELOG_ERROR("qhull internal warning (main): did not free %d bytes of long memory (%d pieces)\n", totlong, curlong);
         }
-
         if( exitcode ) {
-            RAVELOG_WARN(str(boost::format("Qhull failed with error %d")%exitcode));
-
-            // This is needed as the same errfile is used multiple times
-            const size_t errMsgEndPos = ftell(errfile);
-
-            rewind(errfile);
-            char buf[255];
-            // + 1 because fgets reads at most count - 1 chars
-            while (static_cast<size_t>(ftell(errfile)) < errMsgEndPos && (fgets(buf, std::min(errMsgEndPos - ftell(errfile) + 1, sizeof(buf)), errfile) != NULL)) {
-                RAVELOG_WARN(buf);
-            }
-            rewind(errfile); // Rewind errfile for next error
-
+            RAVELOG_DEBUG(str(boost::format("Qhull failed with error %d")%exitcode));
             vconvexplanes.resize(0);
             if( !!vconvexfaces ) {
                 vconvexfaces->resize(0);
@@ -1736,7 +1698,6 @@ protected:
     RobotBasePtr _robot;
     CollisionReportPtr _report;
     boost::mutex _mutex;
-    FILE *outfile;
     FILE *errfile;
     std::vector<dReal> _vjointmaxlengths;
 };

@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #include "plugindefs.h"
-#include <boost/lexical_cast.hpp>
 #include <openrave/plugin.h>
 
 namespace ik_barrettwam { IkSolverBasePtr CreateIkSolver(EnvironmentBasePtr, std::istream& sinput, const std::vector<dReal>&vfreeinc); }
@@ -30,7 +29,7 @@ namespace ik_schunk_lwa3 { IkSolverBasePtr CreateIkSolver(EnvironmentBasePtr, st
 namespace ik_katana5d { IkSolverBasePtr CreateIkSolver(EnvironmentBasePtr, std::istream& sinput, const std::vector<dReal>&vfreeinc); }
 namespace ik_katana5d_trans { IkSolverBasePtr CreateIkSolver(EnvironmentBasePtr, std::istream& sinput, const std::vector<dReal>&vfreeinc); }
 
-IkSolverBasePtr CreateIkSolverFromName(const string& _name, const std::vector<dReal>& vfreeinc, dReal ikthreshold, EnvironmentBasePtr penv);
+IkSolverBasePtr CreateIkSolverFromName(const string& _name, const std::vector<dReal>& vfreeinc, EnvironmentBasePtr penv);
 ModuleBasePtr CreateIkFastModule(EnvironmentBasePtr penv, std::istream& sinput);
 void DestroyIkFastLibraries();
 
@@ -42,26 +41,9 @@ InterfaceBasePtr CreateInterfaceValidated(InterfaceType type, const std::string&
             string ikfastname;
             sinput >> ikfastname;
             if( !!sinput ) {
-                // check if ikthreshold parameter exists
-                dReal ikthreshold=1e-4;
-                vector<dReal> vfreeinc;
-                std::string paramname;
-                sinput >> paramname;
-                if( !!sinput ) {
-                    if( paramname == "ikthreshold" ) {
-                        sinput >> ikthreshold;
-                    }
-                    else {
-                        // most likely a free inc parameter
-                        vfreeinc.push_back(boost::lexical_cast<dReal>(paramname));
-                    }
-                }
-                // have to append any left over numbers
-                vector<dReal> vfreeinctemp((istream_iterator<dReal>(sinput)), istream_iterator<dReal>());
-                vfreeinc.insert(vfreeinc.end(), vfreeinctemp.begin(), vfreeinctemp.end());
-                
+                vector<dReal> vfreeinc((istream_iterator<dReal>(sinput)), istream_iterator<dReal>());
                 // look at all the ikfast problem solvers
-                IkSolverBasePtr psolver = CreateIkSolverFromName(ikfastname, vfreeinc, ikthreshold, penv);
+                IkSolverBasePtr psolver = CreateIkSolverFromName(ikfastname, vfreeinc, penv);
                 if( !!psolver ) {
                     return psolver;
                 }

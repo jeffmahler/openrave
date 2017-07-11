@@ -392,14 +392,8 @@ public:
                                     distance = -distance;
                                 }
                                 BOOST_ASSERT( checkgeom1 == vcontacts[i].geom.g1 || checkgeom1 == vcontacts[i].geom.g2 );
-                                
-                                if( !!_report.plink2 ) {
-                                    Transform tlinkinv = _report.plink2->GetTransform().inverse();
-                                    Vector vlinknorm = tlinkinv.rotate(vnorm);
-                                    if( _report.plink2->ValidateContactNormal(tlinkinv*vcontacts[i].geom.pos,vlinknorm)) {
-                                        distance = -distance;
-                                        vnorm = -vnorm;
-                                    }
+                                if( !!_report.plink2 && _report.plink2->ValidateContactNormal(vcontacts[i].geom.pos,vnorm)) {
+                                    distance = -distance;
                                 }
                                 _report.contacts.push_back(CollisionReport::CONTACT(vcontacts[i].geom.pos, vnorm, distance));
                             }
@@ -601,13 +595,8 @@ public:
                         vnorm = -vnorm;
                         distance = -distance;
                     }
-                    if( !!_report.plink1 ) {
-                        Transform tlinkinv = _report.plink1->GetTransform().inverse();
-                        Vector vlinknorm = tlinkinv.rotate(vnorm);
-                        if( _report.plink1->ValidateContactNormal(tlinkinv*vcontacts[index].geom.pos,vlinknorm) ) {
-                            vnorm = -vnorm;
-                            distance = -distance;
-                        }
+                    if( !!_report.plink1 && _report.plink1->ValidateContactNormal(vcontacts[index].geom.pos,vnorm) ) {
+                        distance = -distance;
                     }
                     if( _report.contacts.size() == 0 ) {
                         _report.contacts.push_back(CollisionReport::CONTACT(vcontacts[index].geom.pos, vnorm, distance));
@@ -724,7 +713,7 @@ public:
             adjacentoptions |= KinBody::AO_ActiveDOFs;
         }
 
-        const std::vector<int>& nonadjacent = pbody->GetNonAdjacentLinks(adjacentoptions);
+        const std::set<int>& nonadjacent = pbody->GetNonAdjacentLinks(adjacentoptions);
 
 #ifndef ODE_USE_MULTITHREAD
         boost::mutex::scoped_lock lock(_mutexode);
@@ -781,7 +770,7 @@ public:
             adjacentoptions |= KinBody::AO_ActiveDOFs;
         }
 
-        const std::vector<int>& nonadjacent = pbody->GetNonAdjacentLinks(adjacentoptions);
+        const std::set<int>& nonadjacent = pbody->GetNonAdjacentLinks(adjacentoptions);
 
 #ifndef ODE_USE_MULTITHREAD
         boost::mutex::scoped_lock lock(_mutexode);
@@ -949,13 +938,8 @@ private:
                             vnorm = -vnorm;
                             distance = -distance;
                         }
-                        if( !!_report.plink2 ) {
-                            Transform tlinkinv = _report.plink2->GetTransform().inverse();
-                            Vector vlinknorm = tlinkinv.rotate(vnorm);
-                            if( _report.plink2->ValidateContactNormal(tlinkinv*vcontacts[i].geom.pos,vlinknorm) ) {
-                                vnorm = -vnorm;
-                                distance = -distance;
-                            }
+                        if( !!_report.plink2 && _report.plink2->ValidateContactNormal(vcontacts[i].geom.pos,vnorm) ) {
+                            distance = -distance;
                         }
                         _report.contacts.push_back(CollisionReport::CONTACT(vcontacts[i].geom.pos, vnorm, distance));
                     }
@@ -1063,13 +1047,8 @@ private:
                             vnorm = -vnorm;
                             distance = -distance;
                         }
-                        if( !!_report.plink2 ) {
-                            Transform tlinkinv = _report.plink2->GetTransform().inverse();
-                            Vector vlinknorm = tlinkinv.rotate(vnorm);
-                            if( _report.plink2->ValidateContactNormal(tlinkinv*vcontacts[i].geom.pos,vlinknorm) ) {
-                                vnorm = -vnorm;
-                                distance = -distance;
-                            }
+                        if( !!_report.plink2 && _report.plink2->ValidateContactNormal(vcontacts[i].geom.pos,vnorm) ) {
+                            distance = -distance;
                         }
                         _report.contacts.push_back(CollisionReport::CONTACT(vcontacts[i].geom.pos,vnorm,distance));
                     }
@@ -1199,13 +1178,8 @@ private:
                                 vnorm = -vnorm;
                                 distance = -distance;
                             }
-                            if( !!_report.plink2 ) {
-                                Transform tlinkinv = _report.plink2->GetTransform().inverse();
-                                Vector vlinknorm = tlinkinv.rotate(vnorm);
-                                if( _report.plink2->ValidateContactNormal(tlinkinv*vcontacts[i].geom.pos,vlinknorm) ) {
-                                    vnorm = -vnorm;
-                                    distance = -distance;
-                                }
+                            if( !!_report.plink2 && _report.plink2->ValidateContactNormal(vcontacts[i].geom.pos,vnorm) ) {
+                                distance = -distance;
                             }
                             _report.minDistance = distance;
                             _report.contacts.push_back(CollisionReport::CONTACT(vcontacts[i].geom.pos,vnorm,distance));
@@ -1328,13 +1302,8 @@ private:
                     vnorm = -vnorm;
                     distance = -distance;
                 }
-                if( !!_report.plink1 ) {
-                    Transform tlinkinv = _report.plink1->GetTransform().inverse();
-                    Vector vlinknorm = tlinkinv.rotate(vnorm);
-                    if( _report.plink1->ValidateContactNormal(tlinkinv*contact[index].geom.pos,vlinknorm) ) {
-                        vnorm = -vnorm;
-                        distance = -distance;
-                    }
+                if( !!_report.plink1 && _report.plink1->ValidateContactNormal(contact[index].geom.pos,vnorm) ) {
+                    distance = -distance;
                 }
                 if( _report.contacts.size() == 0 ) {
                     _report.contacts.push_back(CollisionReport::CONTACT(contact[index].geom.pos, vnorm, distance));

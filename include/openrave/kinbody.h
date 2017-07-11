@@ -112,8 +112,6 @@ public:
         Prop_RobotManipulatorSolver = 0x00400000,
         Prop_RobotManipulators = Prop_RobotManipulatorTool | Prop_RobotManipulatorName | Prop_RobotManipulatorSolver,     ///< [robot only] all properties of all manipulators
         Prop_RobotGrabbed = 0x01000000, ///< [robot only] if grabbed bodies changed
-
-        Prop_BodyRemoved = 0x10000000, ///< if a KinBody is removed from the environment
     };
 
     /// \brief used for specifying the type of limit checking and the messages associated with it
@@ -155,7 +153,7 @@ public:
         Vector _vGeomData; ///< for boxes, first 3 values are half extents. For containers, the first 3 values are the full outer extents.
         Vector _vGeomData2; ///< For containers, the first 3 values are the full inner extents.
         Vector _vGeomData3; ///< For containers, the first 3 values is the bottom cross XY full extents and Z height from bottom face.
-
+        
         ///< for sphere it is radius
         ///< for cylinder, first 2 values are radius and height
         ///< for trimesh, none
@@ -170,8 +168,6 @@ public:
 
         GeometryType _type; ///< the type of geometry primitive
 
-        std::string _name; ///< the name of the geometry
-        
         /// \brief filename for render model (optional)
         ///
         /// Should be transformed by _t before rendering.
@@ -321,9 +317,6 @@ public:
             inline const RaveVector<float>& GetAmbientColor() const {
                 return _info._vAmbientColor;
             }
-            inline const std::string& GetName() const {
-                return _info._name;
-            }
 
             /// \brief returns the local collision mesh
             inline const TriMesh& GetCollisionMesh() const {
@@ -367,9 +360,6 @@ public:
             /// \brief sets a new render filename for the geometry. This does not change the collision
             virtual void SetRenderFilename(const std::string& renderfilename);
 
-            /// \brief sets the name of the geometry
-            virtual void SetName(const std::string& name);
-            
 protected:
             boost::weak_ptr<Link> _parent;
             KinBody::GeometryInfo _info; ///< geometry info
@@ -804,9 +794,9 @@ public:
         std::map<std::string, std::vector<dReal> > _mapFloatParameters; ///< custom key-value pairs that could not be fit in the current model
         std::map<std::string, std::vector<int> > _mapIntParameters; ///< custom key-value pairs that could not be fit in the current model
         std::map<std::string, std::string > _mapStringParameters; ///< custom key-value pairs that could not be fit in the current model
-
+        
         ElectricMotorActuatorInfoPtr _infoElectricMotor;
-
+        
         /// true if joint axis has an identification at some of its lower and upper limits.
         ///
         /// An identification of the lower and upper limits means that once the joint reaches its upper limits, it is also
@@ -873,7 +863,7 @@ public:
         /// If _infoElectricMotor is filled, the will compute the nominal torque limits depending on the current speed of the joint.
         /// \return min and max of torque limits
         std::pair<dReal, dReal> GetNominalTorqueLimits(int iaxis=0) const;
-
+        
         inline dReal GetMaxInertia(int iaxis=0) const {
             return _info._vmaxinertia[iaxis];
         }
@@ -927,9 +917,6 @@ public:
 
         /// \brief The degrees of freedom of the joint. Each joint supports a max of 3 degrees of freedom.
         virtual int GetDOF() const;
-
-        /// \brief Return true if any of the joint axes has an identification at some of its lower and upper limits.
-        virtual bool IsCircular() const;
 
         /// \brief Return true if joint axis has an identification at some of its lower and upper limits.
         ///
@@ -2013,13 +2000,10 @@ private:
 
     /// \brief return all possible link pairs that could get in collision.
     /// \param adjacentoptions a bitmask of \ref AdjacentOptions values
-    virtual const std::vector<int>& GetNonAdjacentLinks(int adjacentoptions=0) const;
+    virtual const std::set<int>& GetNonAdjacentLinks(int adjacentoptions=0) const;
 
     /// \brief return all possible link pairs whose collisions are ignored.
     virtual const std::set<int>& GetAdjacentLinks() const;
-
-    /// \brief adds the pair of links to the adjacency list. This is
-    virtual void SetAdjacentLinks(int linkindex0, int linkindex1);
 
     /// \deprecated (12/12/11)
     virtual UserDataPtr GetPhysicsData() const RAVE_DEPRECATED {
@@ -2189,8 +2173,7 @@ protected:
 
     mutable std::vector<std::list<UserDataWeakPtr> > _vlistRegisteredCallbacks; ///< callbacks to call when particular properties of the body change. _vlistRegisteredCallbacks[index] is the list of change callbacks where 1<<index is part of KinBodyProperty, this makes it easy to find out if any particular bits have callbacks. The registration/de-registration of the lists can happen at any point and does not modify the kinbody state exposed to the user, hence it is mutable.
 
-    mutable boost::array<std::vector<int>, 4> _vNonAdjacentLinks; ///< contains cached versions of the non-adjacent links depending on values in AdjacentOptions. Declared as mutable since data is cached.
-    mutable boost::array<std::set<int>, 4> _cacheSetNonAdjacentLinks; ///< used for caching return value of GetNonAdjacentLinks.
+    mutable boost::array<std::set<int>, 4> _setNonAdjacentLinks; ///< contains cached versions of the non-adjacent links depending on values in AdjacentOptions. Declared as mutable since data is cached.
     mutable int _nNonAdjacentLinkCache; ///< specifies what information is currently valid in the AdjacentOptions.  Declared as mutable since data is cached. If 0x80000000 (ie < 0), then everything needs to be recomputed including _setNonAdjacentLinks[0].
     std::vector<Transform> _vInitialLinkTransformations; ///< the initial transformations of each link specifying at least one pose where the robot is collision free
 
@@ -2202,8 +2185,7 @@ protected:
     uint32_t _nParametersChanged; ///< set of parameters that changed and need callbacks
     ManageDataPtr _pManageData;
     uint32_t _nHierarchyComputed; ///< true if the joint heirarchy and other cached information is computed
-    bool _bMakeJoinedLinksAdjacent; ///< if true, then automatically add adjacent links to the adjacency list so that their self-collisions are ignored.
-    bool _bAreAllJoints1DOFAndNonCircular; ///< if true, then all controllable joints  of the robot are guaranteed to be either revolute or prismatic and non-circular. This allows certain functions that do operations on the joint values (like SubtractActiveDOFValues) to be optimized without calling Joint functions.
+    bool _bMakeJoinedLinksAdjacent;
 private:
     mutable std::string __hashkinematics;
     mutable std::vector<dReal> _vTempJoints;

@@ -22,7 +22,6 @@
 #include <osg/BlendFunc>
 #include <osg/PolygonOffset>
 #include <osg/LineStipple>
-#include <osg/Depth>
 
 namespace qtosgrave {
 
@@ -40,31 +39,31 @@ OSGGroupPtr CreateOSGXYZAxes(double len, double axisthickness)
     };
 
     OSGGroupPtr proot = new osg::Group();
-
+    
     // add 3 cylinder+cone axes
     for(int i = 0; i < 3; ++i) {
-        osg::ref_ptr<osg::MatrixTransform> psep = new osg::MatrixTransform();
+        osg::MatrixTransform* psep = new osg::MatrixTransform();
         //psep->setMatrix(osg::Matrix::translate(-16.0f,-16.0f,-16.0f));
 
         // set a diffuse color
-        osg::ref_ptr<osg::StateSet> state = psep->getOrCreateStateSet();
-        osg::ref_ptr<osg::Material> mat = new osg::Material;
+        osg::StateSet* state = psep->getOrCreateStateSet();
+        osg::Material* mat = new osg::Material;
         mat->setDiffuse(osg::Material::FRONT, colors[i]);
         mat->setAmbient(osg::Material::FRONT, colors[i]);
         state->setAttribute( mat );
 
         osg::Matrix matrix;
-        osg::ref_ptr<osg::MatrixTransform> protation = new osg::MatrixTransform();
+        osg::MatrixTransform* protation = new osg::MatrixTransform();
         matrix.makeRotate(rotations[i]);
         protation->setMatrix(matrix);
 
         matrix.makeIdentity();
-        osg::ref_ptr<osg::MatrixTransform> pcyltrans = new osg::MatrixTransform();
+        osg::MatrixTransform* pcyltrans = new osg::MatrixTransform();
         matrix.setTrans(osg::Vec3f(0,0,0.5*len));
         pcyltrans->setMatrix(matrix);
 
         // make SoCylinder point towards z, not y
-        osg::ref_ptr<osg::Cylinder> cy = new osg::Cylinder();
+        osg::Cylinder* cy = new osg::Cylinder();
         cy->setRadius(axisthickness);
         cy->setHeight(len);
         osg::ref_ptr<osg::Geode> gcyl = new osg::Geode;
@@ -72,7 +71,7 @@ OSGGroupPtr CreateOSGXYZAxes(double len, double axisthickness)
         sdcyl->setColor(colors[i]);
         gcyl->addDrawable(sdcyl.get());
 
-        osg::ref_ptr<osg::Cone> cone = new osg::Cone();
+        osg::Cone* cone = new osg::Cone();
         cone->setRadius(axisthickness*2);
         cone->setHeight(len*0.25);
 
@@ -82,10 +81,10 @@ OSGGroupPtr CreateOSGXYZAxes(double len, double axisthickness)
         sdcone->setColor(colors[i]);
 
         matrix.makeIdentity();
-        osg::ref_ptr<osg::MatrixTransform> pconetrans = new osg::MatrixTransform();
+        osg::MatrixTransform* pconetrans = new osg::MatrixTransform();
         matrix.setTrans(osg::Vec3f(0,0,len));
         pconetrans->setMatrix(matrix);
-
+        
         psep->addChild(protation);
         protation->addChild(pcyltrans);
         pcyltrans->addChild(gcyl.get());
@@ -317,7 +316,7 @@ void KinBodyItem::Load()
                     loadedModel = osgDB::readNodeFile(orgeom->GetRenderFilename());
 
                     pgeometrydata = loadedModel->asGroup();
-                    osg::ref_ptr<osg::StateSet> state = pgeometrydata->getOrCreateStateSet();
+                    osg::StateSet* state = pgeometrydata->getOrCreateStateSet();
                     state->setMode(GL_RESCALE_NORMAL,osg::StateAttribute::ON);
 
                     bSucceeded = true;
@@ -363,36 +362,12 @@ void KinBodyItem::Load()
                 // getting the object to be displayed with transparency
                 if (transparency > 0) {
                     mat->setTransparency(osg::Material::FRONT_AND_BACK, transparency);
+
+                    //state->setRenderBinDetails(0, "transparent");
+                    state->setMode(GL_BLEND, osg::StateAttribute::ON);
+                    state->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
                     state->setAttributeAndModes(new osg::BlendFunc(osg::BlendFunc::SRC_ALPHA, osg::BlendFunc::ONE_MINUS_SRC_ALPHA ));
 
-                    if( 1 ) {
-                        // fast
-                        state->setMode(GL_BLEND, osg::StateAttribute::ON);
-                        state->setRenderingHint(osg::StateSet::TRANSPARENT_BIN);
-                    }
-                    else {
-                        // slow
-                        //state->setAttribute(mat,osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
-                        //state->setRenderBinDetails(0, "transparent");
-                        //ss->setRenderBinDetails(10, "RenderBin", osg::StateSet::USE_RENDERBIN_DETAILS); 
-                        
-                        // Enable blending, select transparent bin.
-                        state->setMode( GL_BLEND, osg::StateAttribute::ON );
-                        state->setRenderingHint( osg::StateSet::TRANSPARENT_BIN );
-                        
-                        // Enable depth test so that an opaque polygon will occlude a transparent one behind it.
-                        state->setMode( GL_DEPTH_TEST, osg::StateAttribute::ON );
-                        
-                        // Conversely, disable writing to depth buffer so that
-                        // a transparent polygon will allow polygons behind it to shine thru.
-                        // OSG renders transparent polygons after opaque ones.
-                        osg::Depth* depth = new osg::Depth;
-                        depth->setWriteMask( false );
-                        state->setAttributeAndModes( depth, osg::StateAttribute::ON );
-                        
-                        // Disable conflicting modes.
-                        state->setMode( GL_LIGHTING, osg::StateAttribute::OFF );
-                    }
                 }
                 state->setAttributeAndModes(mat, osg::StateAttribute::ON | osg::StateAttribute::OVERRIDE);
                 //pgeometrydata->setStateSet(state);
@@ -824,10 +799,7 @@ RobotItem::~RobotItem()
         FOREACH(it, _vEndEffectors) {
             _osgFigureRoot->removeChild(it->_pswitch);
         }
-        FOREACH(it, _vAttachedSensors) {
-            _osgFigureRoot->removeChild(it->_pswitch);
-        }
-    }
+    }    
 }
 
 void RobotItem::SetGrab(bool bGrab, bool bUpdate)
@@ -869,13 +841,10 @@ void RobotItem::Load()
         FOREACH(it, _vEndEffectors) {
             _osgFigureRoot->removeChild(it->_pswitch);
         }
-        FOREACH(it, _vAttachedSensors) {
-          _osgFigureRoot->removeChild(it->_pswitch);
-        }
     }
     _vEndEffectors.resize(0);
     _vAttachedSensors.resize(0);
-
+        
     FOREACHC(itmanip, _probot->GetManipulators()) {
         if(!!(*itmanip)->GetEndEffector()) {
             OSGSwitchPtr peeswitch = new osg::Switch();
@@ -891,7 +860,7 @@ void RobotItem::Load()
             peeswitch->setAllChildrenOff();
             ptrans->addChild(peesep);
             SetMatrixTransform(*ptrans, (*itmanip)->GetTransform());
-
+            
             peesep->addChild(CreateOSGXYZAxes(0.1, 0.0005));
 
             // add text
@@ -907,19 +876,19 @@ void RobotItem::Load()
                 ptextsep->addChild(ptrans);
 
                 osg::ref_ptr<osgText::Text> text = new osgText::Text();
-
+                
                 //Set the screen alignment - always face the screen
                 text->setAxisAlignment(osgText::Text::SCREEN);
                 text->setCharacterSizeMode(osgText::Text::SCREEN_COORDS);
                 text->setCharacterSize(25.0);
-
+                
                 text->setColor(osg::Vec4(0,0,0,1));
                 text->setEnableDepthWrites(false);
 
                 text->setBackdropType(osgText::Text::DROP_SHADOW_BOTTOM_RIGHT);
                 text->setBackdropColor(osg::Vec4(1,1,1,1));
 
-
+        
                 text->getOrCreateStateSet()->setMode(GL_DEPTH_TEST,osg::StateAttribute::OFF);
                 //text->setFontResolution(18,18);
 
@@ -945,10 +914,10 @@ void RobotItem::Load()
             peeswitch->setAllChildrenOff();
             ptrans->addChild(peesep);
             SetMatrixTransform(*ptrans, (*itattsensor)->GetTransform());
-
+            
             peesep->addChild(CreateOSGXYZAxes(0.1, 0.0005));
 
-            // Add Text
+            // add text
             {
                 OSGGroupPtr ptextsep = new osg::Group();
                 osg::ref_ptr<osg::Geode> textGeode = new osg::Geode;
@@ -961,19 +930,19 @@ void RobotItem::Load()
                 ptextsep->addChild(ptrans);
 
                 osg::ref_ptr<osgText::Text> text = new osgText::Text();
-
+                
                 //Set the screen alignment - always face the screen
                 text->setAxisAlignment(osgText::Text::SCREEN);
                 text->setCharacterSizeMode(osgText::Text::SCREEN_COORDS);
                 text->setCharacterSize(25.0);
-
+                
                 text->setColor(osg::Vec4(0,0,0,1));
                 text->setEnableDepthWrites(false);
 
                 text->setBackdropType(osgText::Text::DROP_SHADOW_BOTTOM_RIGHT);
                 text->setBackdropColor(osg::Vec4(1,1,1,1));
 
-
+        
                 text->getOrCreateStateSet()->setMode(GL_DEPTH_TEST,osg::StateAttribute::OFF);
                 //text->setFontResolution(18,18);
 

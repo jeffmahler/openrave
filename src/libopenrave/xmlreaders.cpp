@@ -180,7 +180,7 @@ GeometryInfoReader::GeometryInfoReader(KinBody::GeometryInfoPtr pgeom, const Att
 {
     _bOverwriteDiffuse = _bOverwriteAmbient = _bOverwriteTransparency = false;
     _sGroupName = "self";
-    string type, name;
+    string type;
     bool bVisible = true, bModifiable = true;
     FOREACHC(itatt,atts) {
         if( itatt->first == "type") {
@@ -196,9 +196,6 @@ GeometryInfoReader::GeometryInfoReader(KinBody::GeometryInfoPtr pgeom, const Att
         else if( itatt->first == "group" && !itatt->second.empty() ) {
             _sGroupName = itatt->second;
         }
-        else if( itatt->first == "name" && !itatt->second.empty() ) {
-            name = itatt->second;
-        }
     }
 
     if( type.size() == 0 ) {
@@ -207,7 +204,6 @@ GeometryInfoReader::GeometryInfoReader(KinBody::GeometryInfoPtr pgeom, const Att
     }
 
     _pgeom.reset(new KinBody::GeometryInfo());
-    _pgeom->_name = name;
     if( _stricmp(type.c_str(), "none") == 0 ) {
         _pgeom->_type = GT_None;
     }
@@ -276,7 +272,7 @@ BaseXMLReader::ProcessElement GeometryInfoReader::startElement(const std::string
         }
     }
 
-    static boost::array<string,14> tags = { { "translation", "rotationmat", "rotationaxis", "quat", "diffusecolor", "ambientcolor", "transparency", "render", "extents", "halfextents", "fullextents", "radius", "height", "name"}};
+    static boost::array<string,13> tags = { { "translation", "rotationmat", "rotationaxis", "quat", "diffusecolor", "ambientcolor", "transparency", "render", "extents", "halfextents", "fullextents", "radius", "height"}};
     if( find(tags.begin(),tags.end(),xmlname) != tags.end() ) {
         return PE_Support;
     }
@@ -349,9 +345,6 @@ bool GeometryInfoReader::endElement(const std::string& xmlname)
     else if( xmlname == "transparency" ) {
         _bOverwriteTransparency = true;
         _ss >> _pgeom->_fTransparency;
-    }
-    else if( xmlname == "name" ) {
-        _ss >> _pgeom->_name;
     }
     else {
         // could be type specific features
